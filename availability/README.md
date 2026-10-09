@@ -69,6 +69,12 @@ Run any file with `node <path>`, or run them all with `npm run demos`.
 
 Redundant spare is also a pattern; see `recover/redundant-spare.js`.
 
+### With real containers
+
+| Tactic | Folder | What happens |
+|---|---|---|
+| Hot / warm / cold spare + failover | [docker/](docker) | Kill a matching container with `docker kill`; the gateway fails over and launches a new container to be the next spare |
+
 ## The ride app backend
 
 A small backend in [`app/`](app) that puts several tactics together:

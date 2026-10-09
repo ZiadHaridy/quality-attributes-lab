@@ -20,6 +20,8 @@ npm run demos                           # run all availability tactics
 npm start                               # start the ride app backend
 ```
 
+To see hot, warm and cold spares with real Docker containers, go to [`availability/docker/`](availability/docker) (needs Docker Desktop).
+
 ## Quality attributes
 
 | Chapter | Quality attribute | Folder |
