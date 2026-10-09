@@ -1,0 +1,21 @@
+{
+  "name": "quality-attributes-lab",
+  "version": "1.0.0",
+  "description": "Small runnable JavaScript examples of quality attributes and their tactics, based on Software Architecture in Practice (4th edition).",
+  "type": "module",
+  "scripts": {
+    "start": "node availability/app/server.js",
+    "scenario": "node availability/app/scenario.js",
+    "demos": "node availability/run-all.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Ziad Haridy",
+  "keywords": [
+    "software-architecture",
+    "quality-attributes",
+    "availability",
+    "tactics"
+  ]
+}
