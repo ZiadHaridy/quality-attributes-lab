@@ -23,7 +23,7 @@ Run any file with `node <path>`, or run them all with `npm run demos`.
 | Condition monitoring | [detect/condition-monitoring.js](detect/condition-monitoring.js) | A checksum stops a corrupted fare table from loading |
 | Sanity checking | [detect/sanity-checking.js](detect/sanity-checking.js) | A GPS jump of 180 km in 10 seconds is rejected |
 | Voting | [detect/voting.js](detect/voting.js) | Three fare calculators vote; the odd one out is flagged |
-| Exception detection | [detect/exception-detection.js](detect/exception-detection.js) | Timeouts on payments, type checks on ride requests |
+| Exception detection | [detect/exception-detection.js](detect/exception-detection.js) | A slow payment provider is caught by a 1 s timeout |
 | Self-test | [detect/self-test.js](detect/self-test.js) | Matching tests itself before going live |
 
 ### Recover from faults: preparation and repair
@@ -55,7 +55,7 @@ Run any file with `node <path>`, or run them all with `npm run demos`.
 | Removal from service | [prevent/removal-from-service.js](prevent/removal-from-service.js) | Restart leaking copies before they crash |
 | Transactions | [prevent/transactions.js](prevent/transactions.js) | Charge rider, pay driver, close trip: all or nothing |
 | Predictive model | [prevent/predictive-model.js](prevent/predictive-model.js) | Start a second matching copy before the queue overflows |
-| Exception prevention | [prevent/exception-prevention.js](prevent/exception-prevention.js) | A `Location` type that can never be invalid |
+| Exception prevention | [prevent/exception-prevention.js](prevent/exception-prevention.js) | A location is checked once when created, so it can never be invalid |
 | Increase competence set | [prevent/increase-competence-set.js](prevent/increase-competence-set.js) | No driver nearby? Widen the search instead of failing |
 
 ### Patterns

@@ -1,44 +1,36 @@
 // Transactions: several steps succeed together, or none of them happen.
+// Ending a trip = charge the rider + pay the driver + close the trip.
 import { log, title, isMain } from '../shared/utils.js';
 
-export async function transaction(steps) {
-  const done = [];
+export function endTrip(db, bankWorks) {
+  const before = { ...db }; // remember everything before we start
+
   try {
-    for (const step of steps) {
-      await step.do();
-      done.push(step);
-    }
+    db.riderWallet -= 35;
+    log('step', 'charge rider 35 EGP');
+
+    if (!bankWorks) throw new Error('bank refused the driver payout');
+    db.driverWallet += 28;
+    log('step', 'pay driver 28 EGP');
+
+    db.trip = 'closed';
+    log('step', 'close the trip');
   } catch (error) {
-    for (const step of done.reverse()) await step.undo();
+    Object.assign(db, before); // ROLLBACK: put everything back
     throw error;
   }
-}
-
-function endTrip(db, payoutWorks) {
-  return [
-    { do: () => { db.riderWallet -= 35; log('step', 'charge rider 35 EGP'); }, undo: () => { db.riderWallet += 35; log('undo', 'refund rider', 'warn'); } },
-    {
-      do: () => {
-        if (!payoutWorks) throw new Error('bank API refused the driver payout');
-        db.driverWallet += 28;
-        log('step', 'pay driver 28 EGP');
-      },
-      undo: () => { db.driverWallet -= 28; log('undo', 'take back driver payout', 'warn'); },
-    },
-    { do: () => { db.trip = 'closed'; log('step', 'close the trip'); }, undo: () => { db.trip = 'open'; } },
-  ];
 }
 
 if (isMain(import.meta.url)) {
   const db = { riderWallet: 100, driverWallet: 0, trip: 'open' };
 
-  for (const payoutWorks of [false, true]) {
-    title(`Transactions: end trip-42 (driver payout ${payoutWorks ? 'works' : 'fails'})`);
+  for (const bankWorks of [false, true]) {
+    title(`Transactions: end trip-42 (bank ${bankWorks ? 'works' : 'fails'})`);
     try {
-      await transaction(endTrip(db, payoutWorks));
-      log('result', `committed: ${JSON.stringify(db)}`, 'ok');
+      endTrip(db, bankWorks);
+      log('result', `COMMIT: ${JSON.stringify(db)}`, 'ok');
     } catch (error) {
-      log('result', `${error.message} → rolled back: ${JSON.stringify(db)}`, 'fail');
+      log('result', `${error.message} → ROLLBACK: ${JSON.stringify(db)}`, 'fail');
     }
   }
 }

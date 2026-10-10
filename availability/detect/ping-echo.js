@@ -1,10 +1,11 @@
-// Ping/echo: the monitor sends a ping and expects an echo back in time.
+// Ping/echo: the monitor asks "are you alive?" and waits for an answer.
+// No answer in time means the service has failed.
 import { log, sleep, title, isMain } from '../shared/utils.js';
 
 export async function ping(service, timeoutMs) {
-  const echo = service.ping().then(() => true).catch(() => false);
-  const timeout = sleep(timeoutMs).then(() => false);
-  return Promise.race([echo, timeout]);
+  const echo = service.ping().then(() => true, () => false); // answered → alive
+  const noAnswer = sleep(timeoutMs).then(() => false);       // too late → dead
+  return Promise.race([echo, noAnswer]);                     // whichever comes first
 }
 
 if (isMain(import.meta.url)) {
@@ -13,18 +14,19 @@ if (isMain(import.meta.url)) {
   const payments = {
     stuck: false,
     async ping() {
-      if (this.stuck) await new Promise(() => {}); // never answers
-      await sleep(100);
+      if (this.stuck) await new Promise(() => {}); // stuck: never answers
+      return 'echo';
     },
   };
 
-  for (let i = 1; i <= 4; i++) {
-    if (i === 3) {
-      payments.stuck = true;
-      log('payments', 'gets stuck (deadlock)', 'warn');
-    }
-    const alive = await ping(payments, 500);
-    if (alive) log('monitor', `ping ${i} → echo, payments is alive`, 'ok');
-    else log('monitor', `ping ${i} → no echo within 500 ms → payments FAILED`, 'fail');
+  async function check() {
+    if (await ping(payments, 500)) log('monitor', 'ping → echo → payments is alive', 'ok');
+    else log('monitor', 'ping → no echo in 500 ms → payments FAILED', 'fail');
   }
+
+  await check();
+  await check();
+  payments.stuck = true;
+  log('payments', 'gets stuck (deadlock)', 'warn');
+  await check();
 }

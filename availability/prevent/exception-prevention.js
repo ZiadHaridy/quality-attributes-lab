@@ -1,50 +1,34 @@
-// Exception prevention: design the code so the exception cannot happen.
-// Here a Location type that can never be invalid (like smart pointers / wrappers in the book).
+// Exception prevention: design the code so the error cannot happen at all.
+// A location is checked once, when it is created. After that it is always valid,
+// so the distance code never crashes.
 import { log, title, isMain } from '../shared/utils.js';
 
-export class Location {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    Object.freeze(this);
-  }
-
-  static from(raw) {
-    if (typeof raw?.x !== 'number' || typeof raw?.y !== 'number') return null;
-    return new Location(raw.x, raw.y);
-  }
-
-  distanceTo(other) {
-    return Math.hypot(this.x - other.x, this.y - other.y);
-  }
+export function createLocation(raw) {
+  if (typeof raw?.x !== 'number' || typeof raw?.y !== 'number') return null;
+  return Object.freeze({ x: raw.x, y: raw.y }); // frozen: nobody can break it later
 }
 
-const unsafeDistance = (rider, driver) => Math.hypot(rider.location.x - driver.location.x, rider.location.y - driver.location.y);
-
-export function nearbyDrivers(rider, drivers) {
-  const from = Location.from(rider.location);
-  return drivers
-    .map((d) => ({ name: d.name, location: Location.from(d.location) }))
-    .filter((d) => d.location !== null)
-    .map((d) => ({ name: d.name, km: d.location.distanceTo(from).toFixed(1) }));
-}
+export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 if (isMain(import.meta.url)) {
-  const rider = { location: { x: 0, y: 0 } };
+  const rider = { x: 0, y: 0 };
   const drivers = [
     { name: 'Sara', location: { x: 1, y: 2 } },
     { name: 'Omar' }, // just logged in, no location yet
     { name: 'Mona', location: { x: 4, y: 3 } },
   ];
 
-  title('Without prevention');
+  title('Without prevention: raw data goes straight into the math');
   try {
-    drivers.forEach((d) => log('matching', `${d.name}: ${unsafeDistance(rider, d).toFixed(1)} km`));
+    for (const d of drivers) log('matching', `${d.name}: ${distance(rider, d.location).toFixed(1)} km`);
   } catch (error) {
     log('matching', `crashed: ${error.message}`, 'fail');
   }
 
-  title('With prevention');
-  for (const d of nearbyDrivers(rider, drivers)) log('matching', `${d.name}: ${d.km} km`, 'ok');
-  log('result', 'Omar is skipped until he has a valid location, nothing crashes', 'ok');
+  title('With prevention: only valid locations exist');
+  for (const d of drivers) {
+    const location = createLocation(d.location);
+    if (!location) log('matching', `${d.name}: no valid location yet, skipped`, 'warn');
+    else log('matching', `${d.name}: ${distance(rider, location).toFixed(1)} km`, 'ok');
+  }
 }

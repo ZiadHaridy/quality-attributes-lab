@@ -1,44 +1,30 @@
-// Process pairs: a backup receives checkpoints from the primary. If the primary dies,
-// the backup rolls back to the last checkpoint and takes over.
+// Process pairs: a primary does the work and sends a copy of its state (a checkpoint)
+// to a backup every few requests. If the primary dies, the backup takes over from the
+// last checkpoint and redoes the requests that came after it.
 import { log, title, isMain } from '../shared/utils.js';
 
-export class ProcessPair {
-  constructor(checkpointEvery = 2) {
-    this.checkpointEvery = checkpointEvery;
-    this.primaryState = [];
-    this.backupState = [];
-    this.primaryUp = true;
-  }
-
-  handle(trip) {
-    if (!this.primaryUp) {
-      this.backupState.push(trip);
-      return 'backup';
-    }
-    this.primaryState.push(trip);
-    if (this.primaryState.length % this.checkpointEvery === 0) this.backupState = [...this.primaryState];
-    return 'primary';
-  }
-
-  failover() {
-    this.primaryUp = false;
-    const lastCheckpoint = this.backupState.length;
-    const toRedo = this.primaryState.slice(lastCheckpoint);
-    toRedo.forEach((trip) => this.backupState.push(trip));
-    return toRedo;
-  }
+export function takeOver(checkpoint, requestLog) {
+  const missed = requestLog.slice(checkpoint.length);
+  return { state: [...checkpoint, ...missed], missed };
 }
 
 if (isMain(import.meta.url)) {
-  title('Process pairs: trip processing, checkpoint every 2 trips');
+  title('Process pairs: a checkpoint every 2 trips');
 
-  const pair = new ProcessPair(2);
-  for (const trip of ['trip-1', 'trip-2', 'trip-3']) log('pair', `${trip} → ${pair.handle(trip)}`, 'ok');
+  const requestLog = []; // every request is written here first
+  let checkpoint = [];   // what the backup knows
+
+  for (const trip of ['trip-1', 'trip-2', 'trip-3']) {
+    requestLog.push(trip);
+    log('primary', `handles ${trip}`, 'ok');
+    if (requestLog.length % 2 === 0) {
+      checkpoint = [...requestLog];
+      log('checkpoint', `backup now knows: ${checkpoint.join(', ')}`);
+    }
+  }
 
   log('primary', 'crashes!', 'fail');
-  const redone = pair.failover();
-  log('backup', `rolls back to the last checkpoint and redoes: ${redone.join(', ')} (from the request log)`, 'warn');
-
-  log('pair', `trip-4 → ${pair.handle('trip-4')}`, 'ok');
-  log('result', `backup state: ${pair.backupState.join(', ')}`, 'ok');
+  const backup = takeOver(checkpoint, requestLog);
+  log('backup', `starts from the checkpoint and redoes: ${backup.missed.join(', ')}`, 'warn');
+  log('result', `backup knows: ${backup.state.join(', ')} → nothing lost`, 'ok');
 }

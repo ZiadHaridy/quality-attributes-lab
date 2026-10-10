@@ -1,4 +1,5 @@
 // Circuit breaker: after too many failures, stop calling the dead service for a while and fail fast.
+// CLOSED = calls go through. OPEN = calls are blocked. After the wait, one test call is let through.
 import { log, sleep, title, isMain } from '../shared/utils.js';
 
 export class CircuitBreaker {
@@ -12,20 +13,18 @@ export class CircuitBreaker {
   }
 
   async fire(...args) {
-    if (this.state === 'OPEN') {
-      if (Date.now() - this.openedAt < this.resetTimeoutMs) throw new Error('circuit is open, failing fast');
-      this.state = 'HALF_OPEN';
-    }
+    const waitIsOver = Date.now() - this.openedAt >= this.resetTimeoutMs;
+    if (this.state === 'OPEN' && !waitIsOver) throw new Error('circuit is open, failing fast');
 
     try {
       const result = await this.call(...args);
-      this.state = 'CLOSED';
+      this.state = 'CLOSED'; // it works (again)
       this.failures = 0;
       return result;
     } catch (error) {
       this.failures++;
-      if (this.state === 'HALF_OPEN' || this.failures >= this.failureThreshold) {
-        this.state = 'OPEN';
+      if (this.failures >= this.failureThreshold) {
+        this.state = 'OPEN'; // too many failures: stop calling for a while
         this.openedAt = Date.now();
       }
       throw error;
@@ -50,14 +49,14 @@ if (isMain(import.meta.url)) {
       payments.up = true;
       log('payments', 'repaired and back online', 'ok');
     }
-    const before = breaker.state;
+    const wasOpen = breaker.state === 'OPEN';
     const started = Date.now();
     try {
       await breaker.fire();
-      const note = before === 'OPEN' ? ' (half-open test call worked)' : '';
+      const note = wasOpen ? ' (test call worked)' : '';
       log(`call ${i}`, `charged in ${Date.now() - started} ms → ${breaker.state}${note}`, 'ok');
     } catch (error) {
-      const note = before === 'OPEN' && !error.message.includes('open') ? ' (half-open test call failed)' : '';
+      const note = wasOpen && !error.message.includes('failing fast') ? ' (test call failed)' : '';
       log(`call ${i}`, `${error.message} in ${Date.now() - started} ms → ${breaker.state}${note}`, 'fail');
     }
     await sleep(200);
